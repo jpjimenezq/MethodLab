@@ -4,22 +4,21 @@ Una aplicación web completa para ejecutar y analizar métodos numéricos con in
 
 ## 👥 Integrantes del Equipo
 
-- **[Nombre del Estudiante 1]** - Desarrollo Backend y API
-- **[Nombre del Estudiante 2]** - Desarrollo Frontend y UI/UX  
-- **[Nombre del Estudiante 3]** - Implementación de Métodos Numéricos
-- **[Nombre del Estudiante 4]** - Documentación y Testing
+- **Juan Pablo Jimenez Quiroz**
 
 *Universidad EAFIT - Análisis Numérico - 2025*
 
 ## 🚀 Características Principales
 
-- **Interfaz dividida por capítulos** según el contenido del curso
-- **Sistema de ayudas contextual** para guiar al usuario
-- **Prevención de errores** con validación en tiempo real
-- **Gráficos interactivos** para visualización de resultados
-- **Tablas de iteraciones** detalladas
-- **Reportes de comparación automáticos** entre métodos
-- **Soporte para funciones algebraicas** con sintaxis intuitiva
+- **Interfaz dividida por capítulos** según el contenido del curso de Análisis Numérico
+- **Sistema de ayudas contextual** con tutoriales para cada método
+- **Prevención de errores** con validación en tiempo real de entrada de datos
+- **Gráficos interactivos** generados dinámicamente con Matplotlib
+- **Tablas de iteraciones** detalladas con formato profesional
+- **Reportes de comparación automáticos** que ejecutan todos los métodos simultáneamente
+- **Cálculo automático de derivadas** usando SymPy para métodos que lo requieren
+- **Interfaz responsiva** que se adapta a diferentes tamaños de pantalla
+- **Ejemplos precargados** para cada método con datos de prueba
 
 ## 📚 Métodos Implementados
 
@@ -32,10 +31,13 @@ Una aplicación web completa para ejecutar y analizar métodos numéricos con in
 - ✅ **Raíces Múltiples** - Newton modificado para raíces múltiples
 
 **Características específicas:**
-- Graficación de funciones y convergencia
+- Graficación automática de funciones con puntos de iteración
 - Tabla de iteraciones con errores relativos y absolutos
-- Comparación automática de métodos
-- Ayuda para calcular derivadas
+- Comparación automática de todos los métodos con un solo clic
+- Cálculo automático de derivadas usando botón ∂/∂x
+- Detección automática de convergencia y divergencia
+- Soporte para funciones trigonométricas, exponenciales y logarítmicas
+- Informe detallado con ranking de precisión y eficiencia
 
 ### Capítulo 2: Sistemas de Ecuaciones Lineales
 - ✅ **Jacobi** - Método iterativo básico
@@ -43,11 +45,13 @@ Una aplicación web completa para ejecutar y analizar métodos numéricos con in
 - ✅ **SOR** - Successive Over-Relaxation con factor ω
 
 **Características específicas:**
-- Soporte para matrices hasta 7x7
-- Cálculo del radio espectral
-- Análisis de convergencia automático
-- Múltiples tipos de normas (1, 2, ∞)
-- Comparación de métodos con diferentes errores
+- Soporte para matrices hasta 7x7 con entrada dinámica
+- Cálculo automático del radio espectral para análisis de convergencia
+- Verificación de convergencia antes de iniciar iteraciones
+- Múltiples tipos de normas (Norma 1, Norma 2, Norma ∞)
+- Visualización de matrices T y C de iteración
+- Parámetro ω configurable para método SOR (0 < ω < 2)
+- Comparación automática con análisis de radio espectral y velocidad
 
 ### Capítulo 3: Interpolación
 - ✅ **Vandermonde** - Solución directa del sistema
@@ -57,10 +61,13 @@ Una aplicación web completa para ejecutar y analizar métodos numéricos con in
 - ✅ **Spline Cúbico** - Interpolación suave cúbica
 
 **Características específicas:**
-- Graficación del polinomio resultante
-- Soporte para hasta 8 puntos de datos
-- Visualización de funciones por tramos
-- Comparación de precisión entre métodos
+- Graficación automática del polinomio resultante con puntos originales
+- Soporte para hasta 8 puntos de datos de interpolación
+- Visualización de funciones por tramos para splines
+- Comparación automática de todos los métodos de interpolación
+- Fórmulas matemáticas generadas para cada método
+- Análisis de complejidad (polinomio único vs. por tramos)
+- Detección automática de oscilaciones de Runge
 
 ## 🏗️ Arquitectura del Proyecto
 
@@ -175,11 +182,15 @@ npm start
 4. Ejecuta interpolación
 5. Visualiza polinomio resultante y gráfico
 
-### 5. Reportes de Comparación
-- Disponible en todos los capítulos
-- Compara múltiples métodos automáticamente
-- Identifica el método más eficiente
-- Analiza diferentes tipos de errores
+### 5. Reportes de Comparación Automáticos
+- Disponible en todos los capítulos con un solo clic
+- Ejecuta todos los métodos simultáneamente con los mismos parámetros
+- Compara velocidad de convergencia (número de iteraciones)
+- Analiza precisión alcanzada (error final)
+- Identifica automáticamente el mejor método según criterios múltiples
+- Muestra ranking detallado de métodos por error y eficiencia
+- Incluye análisis de convergencia y tiempo de ejecución
+- Presenta recomendaciones basadas en los resultados
 
 ## 🧮 Sintaxis para Funciones
 
@@ -207,46 +218,56 @@ log(x) - 1/x
 ## 📊 Funcionalidades de Análisis
 
 ### Prevención de Errores
-- Validación de entrada en tiempo real
-- Verificación de dominios de funciones
-- Detección de singularidades
-- Alertas de convergencia
+- Validación de entrada en tiempo real con mensajes descriptivos
+- Verificación de dominios de funciones (logaritmos, raíces)
+- Detección de singularidades y división por cero
+- Verificación de condiciones de convergencia antes de ejecutar
+- Alertas de divergencia durante las iteraciones
+- Validación de matrices (diagonal dominante, invertibilidad)
 
-### Reportes Automáticos
-- Comparación de velocidad de convergencia
-- Análisis de precisión alcanzada  
-- Identificación del mejor método
-- Métricas de error detalladas
+### Reportes Automáticos Inteligentes
+- **Resumen Ejecutivo**: Identificación automática del mejor método
+- **Análisis por Método**: Estado, iteraciones, error final y raíz aproximada
+- **Análisis Comparativo**: Gráficos comparativos de convergencia, eficiencia y precisión
+- **Ranking Automático**: Orden de métodos por error final y velocidad
+- **Tipos de Error**: Explicación de errores relativos, absolutos y normas
+- **Recomendaciones**: Sugerencias basadas en resultados obtenidos
+- **Métricas de Rendimiento**: Tiempo de ejecución de cada método
 
-### Visualización
-- Gráficos de funciones y convergencia
-- Tablas de iteraciones formateadas
-- Representación visual de splines
-- Exportación de resultados
+### Visualización Avanzada
+- Gráficos de funciones con matplotlib en base64
+- Puntos de iteración superpuestos en la gráfica
+- Tablas de iteraciones con formato profesional y colores por método
+- Representación visual de splines lineales y cúbicos
+- Matrices de iteración (T y C) formateadas
+- Interfaz con código de colores por método para fácil identificación
 
 ## 🔧 Configuración API
 
-La API REST expone endpoints para cada método:
+La API REST expone endpoints para cada método. Todos retornan JSON con resultados o errores.
 
-### Capítulo 1
-- `POST /calculate/bisection`
-- `POST /calculate/newton`
-- `POST /calculate/puntoFijo`
-- `POST /calculate/raicesMultiples`
-- `POST /calculate/ReglaFalsa`
-- `POST /calculate/secante`
+### Capítulo 1 - Ecuaciones No Lineales
+- `POST /calculate/bisection` - Parámetros: `function_text`, `a`, `b`, `tol`, `max_count`
+- `POST /calculate/newton` - Parámetros: `function_text`, `first_derivate_text`, `x0`, `tol`, `max_count`
+- `POST /calculate/puntoFijo` - Parámetros: `function_text`, `g_function_text`, `x0`, `tol`, `max_count`
+- `POST /calculate/raicesMultiples` - Parámetros: `function_text`, `first_derivate_text`, `second_derivate_text`, `x0`, `tol`, `max_count`
+- `POST /calculate/ReglaFalsa` - Parámetros: `function_text`, `a`, `b`, `tol`, `max_count`
+- `POST /calculate/secante` - Parámetros: `function_text`, `x0`, `x1`, `tol`, `max_count`
 
-### Capítulo 2  
-- `POST /calculate/jacobi`
-- `POST /calculate/gaussSeidel`
-- `POST /calculate/sor`
+### Capítulo 2 - Sistemas Lineales
+- `POST /calculate/jacobi` - Parámetros: `matrixA`, `vectorB`, `vectorX0`, `norm_type`, `tol`, `max_count`
+- `POST /calculate/gaussSeidel` - Parámetros: `matrixA`, `vectorB`, `vectorX0`, `norm_type`, `tol`, `max_count`
+- `POST /calculate/sor` - Parámetros: `matrixA`, `vectorB`, `vectorX0`, `w`, `norm_type`, `tol`, `max_count`
 
-### Capítulo 3
-- `POST /calculate/lagrange`
-- `POST /calculate/newton_interpolation`
-- `POST /calculate/spline_cubico`
-- `POST /calculate/spline_lineal`
-- `POST /calculate/vandermonde`
+### Capítulo 3 - Interpolación
+- `POST /calculate/lagrange` - Parámetros: `x_values`, `y_values`
+- `POST /calculate/newton_interpolation` - Parámetros: `x_values`, `y_values`
+- `POST /calculate/spline_cubico` - Parámetros: `x_values`, `y_values`
+- `POST /calculate/spline_lineal` - Parámetros: `x_values`, `y_values`
+- `POST /calculate/vandermonde` - Parámetros: `x_values`, `y_values`
+
+### Endpoint Adicional
+- `POST /plot` - Genera gráfico de función. Parámetros: `function_text`, `x_min` (opcional), `x_max` (opcional)
 
 ## 🤝 Contribución
 
@@ -265,14 +286,151 @@ Este proyecto es desarrollado con fines académicos para la Universidad EAFIT.
 ## 🐛 Problemas Conocidos y Soluciones
 
 ### Error de CORS
-Si experimentas problemas de CORS, asegúrate de que el backend esté ejecutándose en el puerto 8000.
+Si experimentas problemas de CORS, asegúrate de que:
+- El backend esté ejecutándose en el puerto 8000
+- Flask-CORS esté instalado correctamente
+- El frontend apunte a `http://localhost:8000`
 
 ### Dependencias del Frontend
-Si hay conflictos de dependencias, usa: `npm install --legacy-peer-deps`
+Si hay conflictos de dependencias de React/Next.js:
+```bash
+npm install --legacy-peer-deps
+```
 
 ### Python Virtual Environment
-Siempre usa un entorno virtual para evitar conflictos de dependencias de Python.
+Siempre usa un entorno virtual para evitar conflictos:
+```bash
+python -m venv venv
+# Windows: venv\Scripts\activate
+# Linux/Mac: source venv/bin/activate
+```
+
+### Errores de Matplotlib
+Si hay problemas con generación de gráficos:
+```bash
+pip install matplotlib --upgrade
+```
+
+### Puerto en Uso
+Si el puerto 3000 o 8000 está ocupado:
+```bash
+# Frontend - cambiar puerto
+PORT=3001 npm run dev
+
+# Backend - modificar en main.py
+app.run(debug=True, port=8001)
+```
+
+## 💡 Consejos de Uso
+
+### Para Mejores Resultados:
+
+**Capítulo 1 - Ecuaciones:**
+- Usa el botón ∂/∂x para calcular derivadas automáticamente
+- Verifica que f(a) y f(b) tengan signos opuestos para Bisección/Regla Falsa
+- Para Punto Fijo, asegúrate de que |g'(x)| < 1 cerca de la raíz
+- Comienza con tolerancias de 1e-6 y ajusta según necesites
+
+**Capítulo 2 - Sistemas:**
+- Verifica que la matriz sea diagonal dominante para garantizar convergencia
+- Revisa el radio espectral antes de ejecutar muchas iteraciones
+- Para SOR, valores de ω entre 1.0 y 1.8 suelen funcionar mejor
+- Usa Norma ∞ para una convergencia más estricta
+
+**Capítulo 3 - Interpolación:**
+- Ordena los puntos por valor X antes de interpolar
+- Para muchos puntos (>6), considera usar splines para evitar oscilaciones
+- Los splines cúbicos dan resultados más suaves que los lineales
+- Vandermonde puede ser inestable para más de 8 puntos
+
+## 📈 Estructura de Respuestas API
+
+### Respuesta Exitosa (Capítulo 1):
+```json
+{
+  "result": {
+    "iterations": [[iter, x, fx, error], ...],
+    "conclusion": "Raíz encontrada en x = 1.234",
+    "root": 1.234,
+    "error_type": "relativo",
+    "tolerance": 1e-6,
+    "image_base64": "iVBORw0KGgoAAAANS..."
+  }
+}
+```
+
+### Respuesta con Error:
+```json
+{
+  "error": "La función no cambia de signo en el intervalo"
+}
+```
+
+### Respuesta Exitosa (Capítulo 2):
+```json
+{
+  "result": {
+    "iterations": [[iter, error, [x1, x2, x3]], ...],
+    "T": [[...], [...]],
+    "C": [...],
+    "spectral_radius": 0.567,
+    "conclusion": "Sistema resuelto exitosamente",
+    "norm_type": 1
+  }
+}
+```
+
+### Respuesta Exitosa (Capítulo 3):
+```json
+{
+  "result": {
+    "polynomial": [a0, a1, a2, ...],
+    "polynomial_str": "1.0 + 2.0x + 3.0x^2",
+    "splines": ["...", "..."],
+    "image_base64": "iVBORw0KGgoAAAANS..."
+  }
+}
+```
+
+## 🎓 Créditos y Agradecimientos
+
+Este proyecto fue desarrollado como trabajo final del curso de **Análisis Numérico** en la **Universidad EAFIT**, 2025.
+
+### Tecnologías y Recursos
+- Algoritmos basados en el libro "Métodos Numéricos" de Richard L. Burden y J. Douglas Faires
+- Implementación de métodos verificada con literatura académica
+- Interfaz diseñada siguiendo principios de UX/UI modernos
+- Inspiración en plataformas educativas como Symbolab y WolframAlpha
+
+### Propósito Académico
+Esta herramienta fue creada con fines educativos para:
+- Facilitar el aprendizaje de métodos numéricos
+- Permitir experimentación con diferentes parámetros
+- Visualizar el comportamiento de algoritmos iterativos
+- Comparar la eficiencia de diferentes enfoques
+- Proporcionar una plataforma interactiva para estudiantes
+
+## 📞 Contacto y Soporte
+
+Para reportar bugs, solicitar features o hacer preguntas:
+- **Email**: [jpjimenezq@eafit.edu.co](mailto:jpjimenezq@eafit.edu.co)
+- **GitHub Issues**: [Crear un issue](https://github.com/jpjimenezq/MethodLab/issues)
+- **Universidad EAFIT**: Departamento de Ciencias Matemáticas
+
+## 🌟 Mejoras Futuras
+
+Características planeadas para versiones futuras:
+- [ ] Exportación de resultados a PDF
+- [ ] Más métodos (Newton con relajación, gradiente conjugado)
+- [ ] Soporte para ecuaciones diferenciales ordinarias
+- [ ] Integración numérica (trapecio, Simpson)
+- [ ] Derivación e integración numérica
+- [ ] Modo oscuro para la interfaz
+- [ ] Historial de cálculos
+- [ ] Compartir resultados por URL
 
 ---
 
-**Desarrollado con ❤️ por estudiantes de Análisis Numérico - Universidad EAFIT**
+**Desarrollado con ❤️ para la comunidad de Análisis Numérico - Universidad EAFIT**
+
+*Si este proyecto te fue útil, considera darle una ⭐ en GitHub*
