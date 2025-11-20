@@ -30,6 +30,8 @@ export default function Chapter2() {
   const [allResults, setAllResults] = useState<any[]>([])
   const [reportData, setReportData] = useState<any[]>([])
   const [showComparisonReport, setShowComparisonReport] = useState(false)
+  const [showExecutionReport, setShowExecutionReport] = useState(false)
+  const [executionReportData, setExecutionReportData] = useState<any>(null)
 
   // Estados para la matriz y vectores
   const [matrixA, setMatrixA] = useState<string[][]>([
@@ -345,6 +347,150 @@ export default function Chapter2() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Función para generar informe de ejecución detallado
+  const generateExecutionReport = () => {
+    const missingData: string[] = [];
+    const warnings: string[] = [];
+    
+    // Validar matriz A
+    const hasEmptyMatrixCells = matrixA.some(row => row.some(val => val === '' || val === undefined));
+    if (hasEmptyMatrixCells) {
+      missingData.push('Matriz A tiene celdas vacías');
+    }
+    
+    // Validar que matriz sea cuadrada y no esté vacía
+    if (matrixA.length === 0) {
+      missingData.push('Matriz A está vacía');
+    }
+    
+    // Validar vector B
+    const hasEmptyVectorB = vectorB.some(val => val === '' || val === undefined);
+    if (hasEmptyVectorB) {
+      missingData.push('Vector B tiene elementos vacíos');
+    }
+    
+    // Validar vector X0
+    const hasEmptyVectorX0 = vectorX0.some(val => val === '' || val === undefined);
+    if (hasEmptyVectorX0) {
+      missingData.push('Vector X0 tiene elementos vacíos');
+    }
+    
+    // Validar dimensiones
+    if (vectorB.length !== matrixSize) {
+      warnings.push(`Vector B debe tener ${matrixSize} elementos (actualmente tiene ${vectorB.length})`);
+    }
+    if (vectorX0.length !== matrixSize) {
+      warnings.push(`Vector X0 debe tener ${matrixSize} elementos (actualmente tiene ${vectorX0.length})`);
+    }
+    
+    // Validar parámetros numéricos
+    if (tolerance <= 0) {
+      warnings.push('La tolerancia debe ser un valor positivo');
+    }
+    if (maxIterations <= 0) {
+      warnings.push('El máximo de iteraciones debe ser un valor positivo');
+    }
+    if (selectedMethod === 'sor' && (wValue <= 0 || wValue >= 2)) {
+      warnings.push('El factor ω (omega) debe estar en el rango (0, 2) para SOR');
+    }
+    
+    // Verificar diagonal dominancia (recomendación)
+    let isDiagonallyDominant = true;
+    try {
+      const numMatrix = matrixA.map(row => row.map(v => parseFloat(v)));
+      for (let i = 0; i < numMatrix.length; i++) {
+        const diagonal = Math.abs(numMatrix[i][i]);
+        const rowSum = numMatrix[i].reduce((sum, val, j) => i !== j ? sum + Math.abs(val) : sum, 0);
+        if (diagonal <= rowSum) {
+          isDiagonallyDominant = false;
+          break;
+        }
+      }
+    } catch (e) {
+      isDiagonallyDominant = false;
+    }
+    
+    if (!isDiagonallyDominant) {
+      warnings.push('La matriz NO es diagonalmente dominante - la convergencia NO está garantizada');
+    }
+    
+    const report = {
+      method: methods.find(m => m.id === selectedMethod)?.name || selectedMethod,
+      timestamp: new Date().toLocaleString('es-ES'),
+      systemDescription: {
+        matrixA: {
+          description: 'Matriz de coeficientes del sistema Ax = b',
+          dimension: `${matrixSize}×${matrixSize}`,
+          purpose: 'Contiene los coeficientes de las ecuaciones lineales',
+          example: 'Para el sistema: 4x₁ - x₂ = 1, -x₁ + 4x₂ - x₃ = 2, -x₂ + 4x₃ = 3'
+        },
+        vectorB: {
+          description: 'Vector de términos independientes',
+          dimension: `${matrixSize}×1`,
+          purpose: 'Representa el lado derecho de las ecuaciones Ax = b',
+          example: 'Los valores después del signo igual en cada ecuación'
+        },
+        vectorX0: {
+          description: 'Vector de aproximación inicial',
+          dimension: `${matrixSize}×1`,
+          purpose: 'Punto de partida para el método iterativo',
+          recommendation: 'Puede ser cero o una estimación cercana a la solución'
+        },
+        parameters: {
+          normType: {
+            value: normType,
+            description: normType === 1 ? 'Norma 1 (suma de valores absolutos)' 
+                      : normType === 2 ? 'Norma 2 (norma euclidiana)'
+                      : 'Norma ∞ (máximo valor absoluto)',
+            purpose: 'Define cómo se mide el error entre iteraciones'
+          },
+          tolerance: {
+            value: tolerance,
+            description: 'Criterio de parada por precisión',
+            purpose: `El método se detiene cuando el error < ${tolerance}`
+          },
+          maxIterations: {
+            value: maxIterations,
+            description: 'Criterio de parada por iteraciones',
+            purpose: 'Límite máximo de iteraciones para evitar bucles infinitos'
+          },
+          ...(selectedMethod === 'sor' && {
+            omega: {
+              value: wValue,
+              description: 'Factor de relajación para SOR',
+              purpose: 'Acelera (ω>1) o estabiliza (ω<1) la convergencia',
+              recommendation: 'Valores típicos: 1.2 a 1.8'
+            }
+          })
+        }
+      },
+      methodExplanation: {
+        name: methods.find(m => m.id === selectedMethod)?.name || selectedMethod,
+        description: selectedMethod === 'jacobi' 
+          ? 'Método iterativo que actualiza todas las componentes simultáneamente usando valores de la iteración anterior'
+          : selectedMethod === 'gaussSeidel'
+          ? 'Similar a Jacobi pero usa valores ya actualizados en la misma iteración, generalmente converge más rápido'
+          : 'Método SOR que acelera Gauss-Seidel mediante un factor de relajación ω',
+        formula: selectedMethod === 'jacobi'
+          ? 'x^(k+1) = D⁻¹(b - (L+U)x^(k))'
+          : selectedMethod === 'gaussSeidel'
+          ? 'x^(k+1) = D⁻¹(b - Lx^(k+1) - Ux^(k))'
+          : 'x^(k+1) = (1-ω)x^(k) + ω·(GS formula)',
+        convergence: 'Garantizada si la matriz es diagonalmente dominante o el radio espectral < 1'
+      },
+      validation: {
+        hasAllData: missingData.length === 0,
+        missingData: missingData,
+        warnings: warnings,
+        isDiagonallyDominant: isDiagonallyDominant,
+        canExecute: missingData.length === 0
+      }
+    };
+    
+    setExecutionReportData(report);
+    setShowExecutionReport(true);
   };
 
   return (
@@ -825,24 +971,46 @@ export default function Chapter2() {
                   </div>
                 )}
 
-                {/* Botón de reporte automático */}
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 text-center">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                    Informe de Comparación Automático
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Ejecuta todos los métodos disponibles y compáralos en un informe detallado
-                  </p>
-                  <button
-                    onClick={runAutomaticReport}
-                    disabled={loading}
-                    className="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors font-semibold shadow-md"
-                  >
-                    {loading ? <LoadingSpinner size="sm" color="gray" /> : 'Generar Informe Automático'}
-                  </button>
-                  <p className="text-xs text-gray-500 mt-3">
-                    El informe ejecutará: Jacobi, Gauss-Seidel y SOR
-                  </p>
+                {/* Botones de reportes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Informe de Comparación */}
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Informe de Comparación
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Ejecuta todos los métodos y compara resultados
+                    </p>
+                    <button
+                      onClick={runAutomaticReport}
+                      disabled={loading}
+                      className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors font-semibold shadow-md"
+                    >
+                      {loading ? <LoadingSpinner size="sm" color="gray" /> : 'Generar Comparación'}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Compara: Jacobi, Gauss-Seidel y SOR
+                    </p>
+                  </div>
+
+                  {/* Informe de Ejecución */}
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6 text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Informe de Ejecución
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Explica los datos y valida el sistema
+                    </p>
+                    <button
+                      onClick={generateExecutionReport}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+                    >
+                      Ver Detalles del Sistema
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Descripción y validación de datos
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -905,6 +1073,222 @@ export default function Chapter2() {
           data={reportData}
           onClose={() => setShowComparisonReport(false)}
         />
+      )}
+
+      {/* Informe de Ejecución */}
+      {showExecutionReport && executionReportData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Informe de Ejecución del Sistema</h2>
+                <button
+                  onClick={() => setShowExecutionReport(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {executionReportData.timestamp} - Método: {executionReportData.method}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Estado de Validación */}
+              <div className={`border rounded-lg p-4 ${
+                executionReportData.validation.canExecute 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <h3 className="text-lg font-semibold mb-2 text-black">
+                  {executionReportData.validation.canExecute ? 'Sistema Listo' : 'Datos Incompletos'}
+                </h3>
+                
+                {executionReportData.validation.missingData.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-medium text-red-800 mb-1">Datos faltantes:</p>
+                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                      {executionReportData.validation.missingData.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {executionReportData.validation.warnings.length > 0 && (
+                  <div>
+                    <p className="font-medium text-yellow-800 mb-1">Advertencias:</p>
+                    <ul className="list-disc list-inside text-sm text-yellow-700 space-y-1">
+                      {executionReportData.validation.warnings.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {executionReportData.validation.canExecute && (
+                  <p className="text-green-700 text-sm mt-2">
+                    Todos los datos están completos. Puedes ejecutar el método.
+                  </p>
+                )}
+              </div>
+
+              {/* Descripción del Sistema */}
+              <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">Componentes del Sistema Ax = b</h3>
+                
+                {/* Matriz A */}
+                <div className="mb-4 bg-white rounded p-3">
+                  <h4 className="font-semibold text-black mb-1">Matriz A ({executionReportData.systemDescription.matrixA.dimension})</h4>
+                  <p className="text-sm text-black mb-1">
+                    <strong>¿Qué es?</strong> {executionReportData.systemDescription.matrixA.description}
+                  </p>
+                  <p className="text-sm text-black mb-1">
+                    <strong>Propósito:</strong> {executionReportData.systemDescription.matrixA.purpose}
+                  </p>
+                  <p className="text-xs text-gray-600 italic">
+                    Ejemplo: {executionReportData.systemDescription.matrixA.example}
+                  </p>
+                </div>
+
+                {/* Vector B */}
+                <div className="mb-4 bg-white rounded p-3">
+                  <h4 className="font-semibold text-black mb-1">Vector b ({executionReportData.systemDescription.vectorB.dimension})</h4>
+                  <p className="text-sm text-black mb-1">
+                    <strong>¿Qué es?</strong> {executionReportData.systemDescription.vectorB.description}
+                  </p>
+                  <p className="text-sm text-black mb-1">
+                    <strong>Propósito:</strong> {executionReportData.systemDescription.vectorB.purpose}
+                  </p>
+                  <p className="text-xs text-gray-600 italic">
+                    {executionReportData.systemDescription.vectorB.example}
+                  </p>
+                </div>
+
+                {/* Vector X0 */}
+                <div className="bg-white rounded p-3">
+                  <h4 className="font-semibold text-black mb-1">Vector X₀ ({executionReportData.systemDescription.vectorX0.dimension})</h4>
+                  <p className="text-sm text-black mb-1">
+                    <strong>¿Qué es?</strong> {executionReportData.systemDescription.vectorX0.description}
+                  </p>
+                  <p className="text-sm text-black mb-1">
+                    <strong>Propósito:</strong> {executionReportData.systemDescription.vectorX0.purpose}
+                  </p>
+                  <p className="text-xs text-gray-600 italic">
+                    Recomendación: {executionReportData.systemDescription.vectorX0.recommendation}
+                  </p>
+                </div>
+              </div>
+
+              {/* Parámetros */}
+              <div className="border border-purple-200 bg-purple-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Parámetros de Configuración</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(executionReportData.systemDescription.parameters).map(([key, param]: [string, any]) => (
+                    <div key={key} className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black text-sm mb-1">
+                        {key === 'normType' ? 'Tipo de Norma' 
+                         : key === 'tolerance' ? 'Tolerancia'
+                         : key === 'maxIterations' ? 'Máximo de Iteraciones'
+                         : key === 'omega' ? 'Factor ω (Omega)'
+                         : key}
+                      </h4>
+                      <p className="text-xs text-black mb-1">
+                        <strong>Valor:</strong> {param.value}
+                      </p>
+                      <p className="text-xs text-black mb-1">
+                        <strong>Descripción:</strong> {param.description}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        <strong>Propósito:</strong> {param.purpose}
+                      </p>
+                      {param.recommendation && (
+                        <p className="text-xs text-purple-600 mt-1">
+                          Recomendación: {param.recommendation}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Explicación del Método */}
+              <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-indigo-900 mb-3">Método: {executionReportData.methodExplanation.name}</h3>
+                
+                <div className="space-y-3">
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">¿Cómo funciona?</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.description}</p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Fórmula</h4>
+                    <p className="text-sm text-black font-mono bg-gray-100 p-2 rounded">
+                      {executionReportData.methodExplanation.formula}
+                    </p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Condición de Convergencia</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.convergence}</p>
+                    {executionReportData.validation.isDiagonallyDominant ? (
+                      <p className="text-sm text-green-700 mt-2">
+                        Tu matriz ES diagonalmente dominante - convergencia garantizada
+                      </p>
+                    ) : (
+                      <p className="text-sm text-yellow-700 mt-2">
+                        Tu matriz NO es diagonalmente dominante - verifica el radio espectral
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Recomendaciones */}
+              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-3">Recomendaciones</h3>
+                <ul className="list-disc list-inside text-sm text-black space-y-2">
+                  <li>Verifica que la matriz A sea cuadrada y todas las celdas estén llenas</li>
+                  <li>Asegúrate de que los vectores B y X₀ tengan el mismo número de elementos que filas en A</li>
+                  <li>Para mejor convergencia, la matriz debe ser diagonalmente dominante</li>
+                  <li>Una buena aproximación inicial (X₀) puede reducir significativamente las iteraciones</li>
+                  <li>Si el método no converge, intenta ajustar los parámetros o usar otro método</li>
+                  {selectedMethod === 'sor' && (
+                    <li className="text-pink-700">Para SOR: valores de ω entre 1.2 y 1.8 suelen dar buenos resultados</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t">
+              <div className="flex justify-end space-x-3">
+                {executionReportData.validation.canExecute && (
+                  <button
+                    onClick={() => {
+                      setShowExecutionReport(false);
+                      handleSubmit();
+                    }}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    Ejecutar Método
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowExecutionReport(false)}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

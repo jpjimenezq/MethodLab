@@ -22,6 +22,8 @@ export default function Chapter3() {
   const [allResults, setAllResults] = useState<any[]>([])
   const [reportData, setReportData] = useState<any[]>([])
   const [showComparisonReport, setShowComparisonReport] = useState(false)
+  const [showExecutionReport, setShowExecutionReport] = useState(false)
+  const [executionReportData, setExecutionReportData] = useState<any>(null)
 
   // Estados para los puntos con valores de ejemplo por defecto
   const [xValues, setXValues] = useState<string[]>(['0', '1', '2', '3'])
@@ -320,6 +322,142 @@ export default function Chapter3() {
       setLoading(false)
     }
   }
+
+  // Función para generar informe de ejecución
+  const generateExecutionReport = () => {
+    const missingData: string[] = [];
+    const warnings: string[] = [];
+
+    // Validar que haya puntos
+    if (xValues.length === 0 || yValues.length === 0) {
+      missingData.push('No hay puntos ingresados');
+    }
+
+    // Validar que X e Y tengan la misma longitud
+    if (xValues.length !== yValues.length) {
+      warnings.push(`Los valores X (${xValues.length}) y Y (${yValues.length}) deben tener la misma cantidad de elementos`);
+    }
+
+    // Validar que no haya celdas vacías
+    const hasEmptyX = xValues.some(val => val === '' || val === undefined);
+    const hasEmptyY = yValues.some(val => val === '' || val === undefined);
+    
+    if (hasEmptyX) {
+      missingData.push('Hay valores X vacíos');
+    }
+    if (hasEmptyY) {
+      missingData.push('Hay valores Y vacíos');
+    }
+
+    // Validar valores numéricos y duplicados en X
+    const numXValues: number[] = [];
+    const duplicateX: number[] = [];
+    
+    xValues.forEach((val, idx) => {
+      const num = parseFloat(val);
+      if (isNaN(num) && val !== '') {
+        warnings.push(`Valor X[${idx}] no es numérico: "${val}"`);
+      } else if (!isNaN(num)) {
+        if (numXValues.includes(num)) {
+          duplicateX.push(num);
+        }
+        numXValues.push(num);
+      }
+    });
+
+    if (duplicateX.length > 0) {
+      warnings.push(`Valores X duplicados encontrados: ${[...new Set(duplicateX)].join(', ')}`);
+    }
+
+    yValues.forEach((val, idx) => {
+      const num = parseFloat(val);
+      if (isNaN(num) && val !== '') {
+        warnings.push(`Valor Y[${idx}] no es numérico: "${val}"`);
+      }
+    });
+
+    // Validar cantidad mínima de puntos según el método
+    const minPoints: { [key in MethodType]: number } = {
+      lagrange: 2,
+      newtonInterpolation: 2,
+      vandermonde: 2,
+      splineLineal: 2,
+      splineCubico: 3
+    };
+
+    const required = minPoints[selectedMethod];
+    if (xValues.length < required) {
+      warnings.push(`El método ${methods.find(m => m.id === selectedMethod)?.name} requiere al menos ${required} puntos (actualmente tienes ${xValues.length})`);
+    }
+
+    // Crear objeto de reporte
+    const report = {
+      timestamp: new Date().toLocaleString('es-ES'),
+      method: methods.find(m => m.id === selectedMethod)?.name || selectedMethod,
+      systemDescription: {
+        xValues: {
+          description: 'Los valores X representan la variable independiente',
+          count: xValues.length,
+          values: xValues.join(', '),
+          purpose: 'Son los puntos donde conocemos el valor de la función',
+          example: 'Por ejemplo, años en un conjunto de datos temporales'
+        },
+        yValues: {
+          description: 'Los valores Y representan la variable dependiente (la función evaluada)',
+          count: yValues.length,
+          values: yValues.join(', '),
+          purpose: 'Son los valores conocidos de la función en cada punto X',
+          example: 'Por ejemplo, poblaciones o valores medidos en cada año'
+        },
+        interpolationGoal: {
+          description: 'La interpolación busca encontrar una función que pase por todos los puntos (X, Y) dados',
+          purpose: 'Permite estimar valores entre los puntos conocidos',
+          example: 'Si tienes datos de 2020 y 2022, puedes estimar el valor de 2021'
+        }
+      },
+      methodExplanation: {
+        name: methods.find(m => m.id === selectedMethod)?.name || selectedMethod,
+        description: {
+          lagrange: 'Construye un polinomio único de grado n-1 usando productos de términos (x - xi). Es fácil de entender pero puede ser inestable numéricamente.',
+          newtonInterpolation: 'Usa diferencias divididas para construir el polinomio de forma incremental. Es más eficiente computacionalmente que Lagrange.',
+          vandermonde: 'Resuelve un sistema de ecuaciones lineales para encontrar los coeficientes del polinomio. Puede ser inestable para muchos puntos.',
+          splineLineal: 'Conecta los puntos con segmentos de línea recta. Simple pero no es suave (tiene esquinas).',
+          splineCubico: 'Conecta los puntos con polinomios cúbicos que mantienen suavidad en las uniones. Es el más suave de todos los métodos.'
+        }[selectedMethod],
+        characteristics: {
+          lagrange: 'Polinomio único de grado n-1. Puede oscilar mucho con muchos puntos (fenómeno de Runge).',
+          newtonInterpolation: 'Polinomio único de grado n-1. Mismo resultado que Lagrange pero más eficiente de calcular.',
+          vandermonde: 'Polinomio único de grado n-1. Requiere resolver sistema de ecuaciones.',
+          splineLineal: 'Función por tramos (piecewise). Grado 1 en cada segmento. No es derivable en los puntos.',
+          splineCubico: 'Función por tramos (piecewise). Grado 3 en cada segmento. Es dos veces derivable en todos los puntos.'
+        }[selectedMethod],
+        whenToUse: {
+          lagrange: 'Útil para pocos puntos (< 10) o para entender el concepto teóricamente.',
+          newtonInterpolation: 'Mejor que Lagrange para implementaciones computacionales con pocos puntos.',
+          vandermonde: 'Principalmente educativo. No recomendado para producción por inestabilidad numérica.',
+          splineLineal: 'Cuando quieres interpolación simple y no necesitas suavidad. Rápido de calcular.',
+          splineCubico: 'Cuando necesitas interpolación suave y tienes muchos puntos. El más usado en práctica.'
+        }[selectedMethod],
+        oscillation: {
+          lagrange: 'Alto riesgo de oscilación con muchos puntos (fenómeno de Runge)',
+          newtonInterpolation: 'Alto riesgo de oscilación con muchos puntos (fenómeno de Runge)',
+          vandermonde: 'Alto riesgo de oscilación con muchos puntos (fenómeno de Runge)',
+          splineLineal: 'Sin oscilación pero no es suave',
+          splineCubico: 'Oscilación mínima y suave'
+        }[selectedMethod]
+      },
+      validation: {
+        hasAllData: missingData.length === 0,
+        missingData: missingData,
+        warnings: warnings,
+        hasDuplicates: duplicateX.length > 0,
+        canExecute: missingData.length === 0 && duplicateX.length === 0
+      }
+    };
+
+    setExecutionReportData(report);
+    setShowExecutionReport(true);
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-50 to-gray-100">
@@ -811,24 +949,46 @@ export default function Chapter3() {
                   </div>
                 )}
 
-                {/* Botón de reporte automático */}
-                <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6 text-center">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                    Informe de Comparación Automático
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Ejecuta todos los métodos disponibles y compáralos en un informe detallado
-                  </p>
-                  <button
-                    onClick={runAutomaticReport}
-                    disabled={loading}
-                    className="px-8 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-semibold shadow-md"
-                  >
-                    {loading ? <LoadingSpinner size="sm" color="gray" /> : 'Generar Informe Automático'}
-                  </button>
-                  <p className="text-xs text-gray-500 mt-3">
-                    El informe ejecutará: Lagrange, Newton Interpolante, Spline Cúbico, Spline Lineal y Vandermonde
-                  </p>
+                {/* Botones de reportes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Informe de Comparación */}
+                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-lg p-6 text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Informe de Comparación
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Ejecuta todos los métodos y compara resultados
+                    </p>
+                    <button
+                      onClick={runAutomaticReport}
+                      disabled={loading}
+                      className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors font-semibold shadow-md"
+                    >
+                      {loading ? <LoadingSpinner size="sm" color="gray" /> : 'Generar Comparación'}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Compara: Lagrange, Newton, Spline Cúbico, Spline Lineal y Vandermonde
+                    </p>
+                  </div>
+
+                  {/* Informe de Ejecución */}
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6 text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Informe de Ejecución
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Explica los datos y valida el sistema
+                    </p>
+                    <button
+                      onClick={generateExecutionReport}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+                    >
+                      Ver Detalles del Sistema
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Descripción y validación de datos
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -900,6 +1060,193 @@ export default function Chapter3() {
           data={reportData}
           onClose={() => setShowComparisonReport(false)}
         />
+      )}
+
+      {/* Informe de Ejecución */}
+      {showExecutionReport && executionReportData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Informe de Ejecución de Interpolación</h2>
+                <button
+                  onClick={() => setShowExecutionReport(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {executionReportData.timestamp} - Método: {executionReportData.method}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Estado de Validación */}
+              <div className={`border rounded-lg p-4 ${
+                executionReportData.validation.canExecute 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <h3 className="text-lg font-semibold mb-2 text-black">
+                  {executionReportData.validation.canExecute ? 'Datos Listos' : 'Datos Incompletos'}
+                </h3>
+                
+                {executionReportData.validation.missingData.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-medium text-red-800 mb-1">Datos faltantes:</p>
+                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                      {executionReportData.validation.missingData.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {executionReportData.validation.warnings.length > 0 && (
+                  <div>
+                    <p className="font-medium text-yellow-800 mb-1">Advertencias:</p>
+                    <ul className="list-disc list-inside text-sm text-yellow-700 space-y-1">
+                      {executionReportData.validation.warnings.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {executionReportData.validation.canExecute && (
+                  <p className="text-green-700 text-sm mt-2">
+                    Todos los datos están completos y validados. Puedes ejecutar el método.
+                  </p>
+                )}
+              </div>
+
+              {/* Descripción de los Datos */}
+              <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">Datos de Interpolación</h3>
+                
+                <div className="space-y-3">
+                  {/* Valores X */}
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black mb-1">Valores X (Variable Independiente)</h4>
+                    <p className="text-sm text-black mb-1">
+                      <strong>Cantidad:</strong> {executionReportData.systemDescription.xValues.count} puntos
+                    </p>
+                    <p className="text-sm text-black mb-1">
+                      <strong>Valores:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.xValues.values}</code>
+                    </p>
+                    <p className="text-sm text-black mb-1">
+                      <strong>¿Qué son?</strong> {executionReportData.systemDescription.xValues.description}
+                    </p>
+                    <p className="text-xs text-gray-600 italic">
+                      {executionReportData.systemDescription.xValues.example}
+                    </p>
+                  </div>
+
+                  {/* Valores Y */}
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black mb-1">Valores Y (Variable Dependiente)</h4>
+                    <p className="text-sm text-black mb-1">
+                      <strong>Cantidad:</strong> {executionReportData.systemDescription.yValues.count} puntos
+                    </p>
+                    <p className="text-sm text-black mb-1">
+                      <strong>Valores:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.yValues.values}</code>
+                    </p>
+                    <p className="text-sm text-black mb-1">
+                      <strong>¿Qué son?</strong> {executionReportData.systemDescription.yValues.description}
+                    </p>
+                    <p className="text-xs text-gray-600 italic">
+                      {executionReportData.systemDescription.yValues.example}
+                    </p>
+                  </div>
+
+                  {/* Objetivo de la interpolación */}
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black mb-1">Objetivo de la Interpolación</h4>
+                    <p className="text-sm text-black mb-1">
+                      <strong>¿Qué es?</strong> {executionReportData.systemDescription.interpolationGoal.description}
+                    </p>
+                    <p className="text-sm text-black mb-1">
+                      <strong>Propósito:</strong> {executionReportData.systemDescription.interpolationGoal.purpose}
+                    </p>
+                    <p className="text-xs text-gray-600 italic">
+                      {executionReportData.systemDescription.interpolationGoal.example}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Explicación del Método */}
+              <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-indigo-900 mb-3">Método: {executionReportData.methodExplanation.name}</h3>
+                
+                <div className="space-y-3">
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">¿Cómo funciona?</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.description}</p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Características</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.characteristics}</p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Cuándo Usarlo</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.whenToUse}</p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Oscilación</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.oscillation}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recomendaciones */}
+              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-3">Recomendaciones</h3>
+                <ul className="list-disc list-inside text-sm text-black space-y-2">
+                  <li>Asegúrate de que los valores X no estén repetidos (deben ser únicos)</li>
+                  <li>Ordena los puntos por X de menor a mayor para mejores resultados</li>
+                  <li>Para pocos puntos (&lt; 10), los polinomios (Lagrange, Newton, Vandermonde) funcionan bien</li>
+                  <li>Para muchos puntos (&gt; 10), prefiere Splines para evitar oscilaciones</li>
+                  <li>Spline Cúbico es el método más usado en la práctica por su suavidad</li>
+                  <li>Spline Lineal es más simple pero crea esquinas en los puntos</li>
+                  <li>Evita polinomios de grado alto (&gt; 10) por el fenómeno de Runge (oscilaciones excesivas)</li>
+                  {executionReportData.validation.hasDuplicates && (
+                    <li className="text-red-700 font-semibold">Tienes valores X duplicados - el método puede fallar o dar resultados incorrectos</li>
+                  )}
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t">
+              <div className="flex justify-end space-x-3">
+                {executionReportData.validation.canExecute && (
+                  <button
+                    onClick={() => {
+                      setShowExecutionReport(false);
+                      handleSubmit();
+                    }}
+                    className="px-6 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors"
+                  >
+                    Ejecutar Método
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowExecutionReport(false)}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   )

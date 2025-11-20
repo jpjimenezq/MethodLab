@@ -41,6 +41,8 @@ export default function Chapter1() {
   const [allResults, setAllResults] = useState<any[]>([]);
   const [reportData, setReportData] = useState<any[]>([]);
   const [showComparisonReport, setShowComparisonReport] = useState(false);
+  const [showExecutionReport, setShowExecutionReport] = useState(false);
+  const [executionReportData, setExecutionReportData] = useState<any>(null);
 
   const {
     register,
@@ -290,6 +292,172 @@ export default function Chapter1() {
     } finally {
       setLoading(false);
     }
+  };
+
+  // Función para generar informe de ejecución
+  const generateExecutionReport = () => {
+    const currentFormData: any = watch();
+    const missingData: string[] = [];
+    const warnings: string[] = [];
+
+    // Validar función principal
+    if (!currentFormData.function_text || currentFormData.function_text.trim() === '') {
+      missingData.push('Función f(x) principal');
+    }
+
+    // Validar datos específicos del método
+    const methodRequirements: { [key in MethodType]: string[] } = {
+      bisection: ['a', 'b'],
+      newton: ['first_derivate_text', 'x0'],
+      puntoFijo: ['g_function_text', 'x0'],
+      raicesMultiples: ['first_derivate_text', 'second_derivate_text', 'x0'],
+      reglaFalsa: ['a', 'b'],
+      secante: ['x0', 'x1']
+    };
+
+    const requirements = methodRequirements[selectedMethod];
+    requirements.forEach(field => {
+      if (!currentFormData[field] || currentFormData[field] === '') {
+        if (field === 'first_derivate_text') missingData.push('Primera derivada f\'(x)');
+        else if (field === 'second_derivate_text') missingData.push('Segunda derivada f\'\'(x)');
+        else if (field === 'g_function_text') missingData.push('Función g(x) para punto fijo');
+        else if (field === 'a') missingData.push('Valor inicial del intervalo (a)');
+        else if (field === 'b') missingData.push('Valor final del intervalo (b)');
+        else if (field === 'x0') missingData.push('Valor inicial x₀');
+        else if (field === 'x1') missingData.push('Segundo valor inicial x₁');
+      }
+    });
+
+    // Validar intervalo para métodos que lo requieren
+    if (['bisection', 'reglaFalsa'].includes(selectedMethod)) {
+      const a = parseFloat(currentFormData.a);
+      const b = parseFloat(currentFormData.b);
+      if (!isNaN(a) && !isNaN(b) && a >= b) {
+        warnings.push('El intervalo [a, b] debe cumplir a < b');
+      }
+    }
+
+    // Validar tolerancia y iteraciones
+    if (!currentFormData.tol || currentFormData.tol <= 0) {
+      warnings.push('La tolerancia debe ser mayor que 0');
+    }
+    if (!currentFormData.max_count || currentFormData.max_count <= 0) {
+      warnings.push('El número máximo de iteraciones debe ser mayor que 0');
+    }
+
+    // Crear objeto de reporte
+    const report = {
+      timestamp: new Date().toLocaleString('es-ES'),
+      method: methods.find(m => m.id === selectedMethod)?.name || selectedMethod,
+      systemDescription: {
+        function: {
+          description: 'La función f(x) es la ecuación cuyas raíces (valores de x donde f(x) = 0) queremos encontrar',
+          value: currentFormData.function_text || 'No especificada',
+          purpose: 'Define el problema a resolver',
+          example: 'Ejemplo: x**3 - 2*x - 5 busca valores donde x³ - 2x - 5 = 0'
+        },
+        ...(selectedMethod === 'newton' || selectedMethod === 'raicesMultiples' ? {
+          firstDerivative: {
+            description: 'La primera derivada f\'(x) indica la pendiente de la función en cada punto',
+            value: currentFormData.first_derivate_text || 'No especificada',
+            purpose: 'Necesaria para calcular la dirección de búsqueda de la raíz',
+            example: 'Si f(x) = x³ - 2x - 5, entonces f\'(x) = 3x² - 2'
+          }
+        } : {}),
+        ...(selectedMethod === 'raicesMultiples' ? {
+          secondDerivative: {
+            description: 'La segunda derivada f\'\'(x) indica la curvatura de la función',
+            value: currentFormData.second_derivate_text || 'No especificada',
+            purpose: 'Necesaria para el método de raíces múltiples que maneja raíces repetidas',
+            example: 'Si f(x) = (x-2)², entonces f\'\'(x) = 2'
+          }
+        } : {}),
+        ...(selectedMethod === 'puntoFijo' ? {
+          gFunction: {
+            description: 'La función g(x) es una reformulación de f(x) = 0 como x = g(x)',
+            value: currentFormData.g_function_text || 'No especificada',
+            purpose: 'El método busca un punto fijo donde x = g(x), equivalente a f(x) = 0',
+            example: 'Si f(x) = x³ - 2x - 5 = 0, una g(x) posible es g(x) = (2x + 5)^(1/3)'
+          }
+        } : {}),
+        ...(['bisection', 'reglaFalsa'].includes(selectedMethod) ? {
+          interval: {
+            description: 'El intervalo [a, b] debe contener la raíz, es decir, f(a) y f(b) deben tener signos opuestos',
+            value: `[${currentFormData.a || '?'}, ${currentFormData.b || '?'}]`,
+            purpose: 'Delimita la región de búsqueda de la raíz',
+            recommendation: 'Verifica que f(a) · f(b) < 0 (signos opuestos)'
+          }
+        } : {}),
+        ...(['newton', 'puntoFijo', 'raicesMultiples'].includes(selectedMethod) ? {
+          initialValue: {
+            description: 'El valor inicial x₀ es el punto de partida para la búsqueda iterativa',
+            value: currentFormData.x0 !== undefined ? currentFormData.x0.toString() : 'No especificado',
+            purpose: 'Determina desde dónde comienza la búsqueda de la raíz',
+            recommendation: 'Elige un valor cercano a la raíz esperada para convergencia más rápida'
+          }
+        } : {}),
+        ...(selectedMethod === 'secante' ? {
+          initialValues: {
+            description: 'El método secante necesita dos valores iniciales x₀ y x₁',
+            value: `x₀ = ${currentFormData.x0 !== undefined ? currentFormData.x0 : '?'}, x₁ = ${currentFormData.x1 !== undefined ? currentFormData.x1 : '?'}`,
+            purpose: 'Define la primera secante (línea entre dos puntos) para aproximar la raíz',
+            recommendation: 'Elige valores cercanos pero distintos, idealmente cerca de la raíz'
+          }
+        } : {}),
+        parameters: {
+          tolerance: {
+            name: 'Tolerancia',
+            value: currentFormData.tol || 1e-6,
+            description: 'Error máximo aceptable en la aproximación',
+            purpose: 'Controla la precisión del resultado final',
+            recommendation: 'Valores más pequeños dan mayor precisión pero requieren más iteraciones'
+          },
+          maxIterations: {
+            name: 'Iteraciones Máximas',
+            value: currentFormData.max_count || 100,
+            description: 'Número máximo de pasos permitidos',
+            purpose: 'Evita bucles infinitos si el método no converge',
+            recommendation: 'Aumenta este valor si el método se detiene sin converger'
+          }
+        }
+      },
+      methodExplanation: {
+        name: methods.find(m => m.id === selectedMethod)?.name || selectedMethod,
+        description: {
+          bisection: 'Método que divide repetidamente el intervalo por la mitad y selecciona el subintervalo donde está la raíz',
+          newton: 'Método que usa la tangente (derivada) en cada punto para aproximarse rápidamente a la raíz',
+          puntoFijo: 'Método que transforma f(x)=0 en x=g(x) y busca un punto donde x no cambie (punto fijo)',
+          raicesMultiples: 'Versión modificada de Newton que maneja raíces repetidas usando la segunda derivada',
+          reglaFalsa: 'Similar a bisección pero usa interpolación lineal en lugar de punto medio',
+          secante: 'Similar a Newton pero aproxima la derivada usando dos puntos en lugar de calcularla'
+        }[selectedMethod],
+        formula: {
+          bisection: 'x = (a + b) / 2, luego selecciona [a,x] o [x,b] según signos',
+          newton: 'x_{n+1} = x_n - f(x_n) / f\'(x_n)',
+          puntoFijo: 'x_{n+1} = g(x_n)',
+          raicesMultiples: 'x_{n+1} = x_n - [f(x)·f\'(x)] / [f\'(x)² - f(x)·f\'\'(x)]',
+          reglaFalsa: 'x = a - f(a)·(b-a) / [f(b)-f(a)]',
+          secante: 'x_{n+1} = x_n - f(x_n)·(x_n - x_{n-1}) / [f(x_n) - f(x_{n-1})]'
+        }[selectedMethod],
+        convergence: {
+          bisection: 'Convergencia garantizada si f(a)·f(b) < 0. Siempre converge pero es lento (lineal)',
+          newton: 'Convergencia cuadrática (muy rápida) si x₀ está cerca de la raíz y f\'(x) ≠ 0',
+          puntoFijo: 'Converge si |g\'(x)| < 1 en la región de la raíz',
+          raicesMultiples: 'Converge cuadráticamente incluso para raíces múltiples',
+          reglaFalsa: 'Convergencia garantizada si f(a)·f(b) < 0, puede ser más lenta que bisección en algunos casos',
+          secante: 'Convergencia superlineal (~1.618), más rápida que bisección pero más lenta que Newton'
+        }[selectedMethod]
+      },
+      validation: {
+        hasAllData: missingData.length === 0,
+        missingData: missingData,
+        warnings: warnings,
+        canExecute: missingData.length === 0
+      }
+    };
+
+    setExecutionReportData(report);
+    setShowExecutionReport(true);
   };
 
   // Función para obtener estilos específicos del método
@@ -1045,24 +1213,46 @@ export default function Chapter1() {
                   </div>
                 )}
 
-                {/* Botón de informe automático */}
-                <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 text-center">
-                  <h4 className="text-lg font-semibold text-gray-900 mb-2">
-                    Informe de Comparación Automático
-                  </h4>
-                  <p className="text-sm text-gray-600 mb-4">
-                    Ejecuta todos los métodos disponibles y compáralos en un informe detallado
-                  </p>
-                  <button
-                    onClick={runAutomaticReport}
-                    disabled={loading}
-                    className="px-8 py-3 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors font-semibold shadow-md"
-                  >
-                    {loading ? <LoadingSpinner size="sm" color="gray" /> : 'Generar Informe Automático'}
-                  </button>
-                  <p className="text-xs text-gray-500 mt-3">
-                    El informe ejecutará: Bisección, Newton, Punto Fijo, Secante, Regla Falsa y Raíces Múltiples
-                  </p>
+                {/* Botones de reportes */}
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  {/* Informe de Comparación */}
+                  <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-lg p-6 text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Informe de Comparación
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Ejecuta todos los métodos y compara resultados
+                    </p>
+                    <button
+                      onClick={runAutomaticReport}
+                      disabled={loading}
+                      className="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50 transition-colors font-semibold shadow-md"
+                    >
+                      {loading ? <LoadingSpinner size="sm" color="gray" /> : 'Generar Comparación'}
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Compara: Bisección, Newton, Punto Fijo, Secante, Regla Falsa y Raíces Múltiples
+                    </p>
+                  </div>
+
+                  {/* Informe de Ejecución */}
+                  <div className="bg-gradient-to-r from-blue-50 to-cyan-50 border border-blue-200 rounded-lg p-6 text-center">
+                    <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                      Informe de Ejecución
+                    </h4>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Explica los datos y valida el sistema
+                    </p>
+                    <button
+                      onClick={generateExecutionReport}
+                      className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold shadow-md"
+                    >
+                      Ver Detalles del Sistema
+                    </button>
+                    <p className="text-xs text-gray-500 mt-3">
+                      Descripción y validación de datos
+                    </p>
+                  </div>
                 </div>
               </div>
             )}
@@ -1145,6 +1335,276 @@ export default function Chapter1() {
           data={reportData}
           onClose={() => setShowComparisonReport(false)}
         />
+      )}
+
+      {/* Informe de Ejecución */}
+      {showExecutionReport && executionReportData && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-y-auto">
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b px-6 py-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Informe de Ejecución del Método</h2>
+                <button
+                  onClick={() => setShowExecutionReport(false)}
+                  className="text-gray-500 hover:text-gray-700 text-2xl"
+                >
+                  ×
+                </button>
+              </div>
+              <p className="text-sm text-gray-600 mt-1">
+                {executionReportData.timestamp} - Método: {executionReportData.method}
+              </p>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 space-y-6">
+              {/* Estado de Validación */}
+              <div className={`border rounded-lg p-4 ${
+                executionReportData.validation.canExecute 
+                  ? 'bg-green-50 border-green-200' 
+                  : 'bg-red-50 border-red-200'
+              }`}>
+                <h3 className="text-lg font-semibold mb-2 text-black">
+                  {executionReportData.validation.canExecute ? 'Sistema Listo' : 'Datos Incompletos'}
+                </h3>
+                
+                {executionReportData.validation.missingData.length > 0 && (
+                  <div className="mb-3">
+                    <p className="font-medium text-red-800 mb-1">Datos faltantes:</p>
+                    <ul className="list-disc list-inside text-sm text-red-700 space-y-1">
+                      {executionReportData.validation.missingData.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+                
+                {executionReportData.validation.warnings.length > 0 && (
+                  <div>
+                    <p className="font-medium text-yellow-800 mb-1">Advertencias:</p>
+                    <ul className="list-disc list-inside text-sm text-yellow-700 space-y-1">
+                      {executionReportData.validation.warnings.map((item: string, idx: number) => (
+                        <li key={idx}>{item}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+
+                {executionReportData.validation.canExecute && (
+                  <p className="text-green-700 text-sm mt-2">
+                    Todos los datos están completos. Puedes ejecutar el método.
+                  </p>
+                )}
+              </div>
+
+              {/* Descripción de Componentes */}
+              <div className="border border-blue-200 bg-blue-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-blue-900 mb-3">Componentes del Problema</h3>
+                
+                <div className="space-y-3">
+                  {/* Función principal */}
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black mb-1">Función f(x)</h4>
+                    <p className="text-sm text-black mb-1">
+                      <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.function.value}</code>
+                    </p>
+                    <p className="text-sm text-black mb-1">
+                      <strong>¿Qué es?</strong> {executionReportData.systemDescription.function.description}
+                    </p>
+                    <p className="text-xs text-gray-600 italic">
+                      {executionReportData.systemDescription.function.example}
+                    </p>
+                  </div>
+
+                  {/* Primera derivada */}
+                  {executionReportData.systemDescription.firstDerivative && (
+                    <div className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black mb-1">Primera Derivada f'(x)</h4>
+                      <p className="text-sm text-black mb-1">
+                        <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.firstDerivative.value}</code>
+                      </p>
+                      <p className="text-sm text-black mb-1">
+                        <strong>¿Qué es?</strong> {executionReportData.systemDescription.firstDerivative.description}
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        {executionReportData.systemDescription.firstDerivative.example}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Segunda derivada */}
+                  {executionReportData.systemDescription.secondDerivative && (
+                    <div className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black mb-1">Segunda Derivada f''(x)</h4>
+                      <p className="text-sm text-black mb-1">
+                        <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.secondDerivative.value}</code>
+                      </p>
+                      <p className="text-sm text-black mb-1">
+                        <strong>¿Qué es?</strong> {executionReportData.systemDescription.secondDerivative.description}
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        {executionReportData.systemDescription.secondDerivative.example}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Función g(x) para punto fijo */}
+                  {executionReportData.systemDescription.gFunction && (
+                    <div className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black mb-1">Función g(x) (Punto Fijo)</h4>
+                      <p className="text-sm text-black mb-1">
+                        <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.gFunction.value}</code>
+                      </p>
+                      <p className="text-sm text-black mb-1">
+                        <strong>¿Qué es?</strong> {executionReportData.systemDescription.gFunction.description}
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        {executionReportData.systemDescription.gFunction.example}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Intervalo [a,b] */}
+                  {executionReportData.systemDescription.interval && (
+                    <div className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black mb-1">Intervalo [a, b]</h4>
+                      <p className="text-sm text-black mb-1">
+                        <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.interval.value}</code>
+                      </p>
+                      <p className="text-sm text-black mb-1">
+                        <strong>¿Qué es?</strong> {executionReportData.systemDescription.interval.description}
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        Recomendación: {executionReportData.systemDescription.interval.recommendation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Valor inicial x₀ */}
+                  {executionReportData.systemDescription.initialValue && (
+                    <div className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black mb-1">Valor Inicial x₀</h4>
+                      <p className="text-sm text-black mb-1">
+                        <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.initialValue.value}</code>
+                      </p>
+                      <p className="text-sm text-black mb-1">
+                        <strong>¿Qué es?</strong> {executionReportData.systemDescription.initialValue.description}
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        Recomendación: {executionReportData.systemDescription.initialValue.recommendation}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Valores iniciales x₀ y x₁ para secante */}
+                  {executionReportData.systemDescription.initialValues && (
+                    <div className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black mb-1">Valores Iniciales</h4>
+                      <p className="text-sm text-black mb-1">
+                        <strong>Valor:</strong> <code className="bg-gray-100 px-2 py-1 rounded">{executionReportData.systemDescription.initialValues.value}</code>
+                      </p>
+                      <p className="text-sm text-black mb-1">
+                        <strong>¿Qué es?</strong> {executionReportData.systemDescription.initialValues.description}
+                      </p>
+                      <p className="text-xs text-gray-600 italic">
+                        Recomendación: {executionReportData.systemDescription.initialValues.recommendation}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Parámetros */}
+              <div className="border border-purple-200 bg-purple-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Parámetros de Configuración</h3>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(executionReportData.systemDescription.parameters).map(([key, param]: [string, any]) => (
+                    <div key={key} className="bg-white rounded p-3">
+                      <h4 className="font-semibold text-black text-sm mb-1">{param.name}</h4>
+                      <p className="text-xs text-black mb-1">
+                        <strong>Valor:</strong> {param.value}
+                      </p>
+                      <p className="text-xs text-black mb-1">
+                        <strong>Descripción:</strong> {param.description}
+                      </p>
+                      <p className="text-xs text-gray-600">
+                        <strong>Propósito:</strong> {param.purpose}
+                      </p>
+                      {param.recommendation && (
+                        <p className="text-xs text-purple-600 mt-1">
+                          Recomendación: {param.recommendation}
+                        </p>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Explicación del Método */}
+              <div className="border border-indigo-200 bg-indigo-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-indigo-900 mb-3">Método: {executionReportData.methodExplanation.name}</h3>
+                
+                <div className="space-y-3">
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">¿Cómo funciona?</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.description}</p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Fórmula</h4>
+                    <p className="text-sm text-black font-mono bg-gray-100 p-2 rounded">
+                      {executionReportData.methodExplanation.formula}
+                    </p>
+                  </div>
+
+                  <div className="bg-white rounded p-3">
+                    <h4 className="font-semibold text-black text-sm mb-1">Condición de Convergencia</h4>
+                    <p className="text-sm text-black">{executionReportData.methodExplanation.convergence}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Recomendaciones */}
+              <div className="border border-yellow-200 bg-yellow-50 rounded-lg p-4">
+                <h3 className="text-lg font-semibold text-yellow-900 mb-3">Recomendaciones</h3>
+                <ul className="list-disc list-inside text-sm text-black space-y-2">
+                  <li>Verifica que todos los campos requeridos estén completos</li>
+                  <li>Para métodos de intervalo (Bisección, Regla Falsa): asegúrate que f(a) y f(b) tengan signos opuestos</li>
+                  <li>Para Newton y Raíces Múltiples: la derivada no debe ser cero cerca de la raíz</li>
+                  <li>Para Punto Fijo: verifica que |g'(x)| &lt; 1 en el intervalo de interés</li>
+                  <li>Una buena aproximación inicial acelera la convergencia</li>
+                  <li>Aumenta las iteraciones máximas si el método no converge</li>
+                  <li>Reduce la tolerancia solo si necesitas mayor precisión</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="sticky bottom-0 bg-gray-50 px-6 py-4 border-t">
+              <div className="flex justify-end space-x-3">
+                {executionReportData.validation.canExecute && (
+                  <button
+                    onClick={() => {
+                      setShowExecutionReport(false);
+                      handleSubmit(onSubmit)();
+                    }}
+                    className="px-6 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition-colors"
+                  >
+                    Ejecutar Método
+                  </button>
+                )}
+                <button
+                  onClick={() => setShowExecutionReport(false)}
+                  className="px-6 py-2 bg-gray-600 text-white rounded-md hover:bg-gray-700 transition-colors"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
