@@ -863,23 +863,38 @@ export default function Chapter1() {
                             {(selectedMethod === "bisection" ||
                               selectedMethod === "reglaFalsa") && (
                               <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
-                                b
+                                xm
                               </th>
                             )}
                             <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
                               {selectedMethod === "bisection" ||
                               selectedMethod === "reglaFalsa"
-                                ? "c"
+                                ? "b"
                                 : selectedMethod === "secante"
                                 ? "x₁"
+                                : selectedMethod === "puntoFijo"
+                                ? "g(x)"
+                                : selectedMethod === "newton"
+                                ? "f(x)"
+                                : selectedMethod === "raicesMultiples"
+                                ? "f(x)"
                                 : "x"}
                             </th>
-                            {selectedMethod !== "bisection" &&
-                              selectedMethod !== "reglaFalsa" && (
-                                <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
-                                  f(x)
-                                </th>
-                              )}
+                            {selectedMethod === "newton" && (
+                              <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
+                                f'(x)
+                              </th>
+                            )}
+                            {selectedMethod === "raicesMultiples" && (
+                              <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
+                                f'(x)
+                              </th>
+                            )}
+                            {(selectedMethod === "puntoFijo" || selectedMethod === "secante") && (
+                              <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
+                                f(x)
+                              </th>
+                            )}
                             <th className="border border-gray-300 px-4 py-2 text-center font-semibold">
                               Error
                             </th>
@@ -918,17 +933,30 @@ export default function Chapter1() {
                                       ? iteration[3].toFixed(6)
                                       : iteration[3]
                                     : typeof iteration[2] === "number"
-                                    ? iteration[2].toFixed(6)
+                                    ? iteration[2].toExponential(3)
                                     : iteration[2]}
                                 </td>
-                                {selectedMethod !== "bisection" &&
-                                  selectedMethod !== "reglaFalsa" && (
-                                    <td className="border border-gray-300 px-4 py-2 text-center text-black">
-                                      {typeof iteration[3] === "number"
-                                        ? iteration[3].toExponential(3)
-                                        : iteration[3]}
-                                    </td>
-                                  )}
+                                {selectedMethod === "newton" && (
+                                  <td className="border border-gray-300 px-4 py-2 text-center text-black">
+                                    {typeof iteration[3] === "number"
+                                      ? iteration[3].toExponential(3)
+                                      : iteration[3]}
+                                  </td>
+                                )}
+                                {selectedMethod === "raicesMultiples" && (
+                                  <td className="border border-gray-300 px-4 py-2 text-center text-black">
+                                    {typeof iteration[3] === "number"
+                                      ? iteration[3].toExponential(3)
+                                      : iteration[3]}
+                                  </td>
+                                )}
+                                {(selectedMethod === "puntoFijo" || selectedMethod === "secante") && (
+                                  <td className="border border-gray-300 px-4 py-2 text-center text-black">
+                                    {typeof iteration[3] === "number"
+                                      ? iteration[3].toExponential(3)
+                                      : iteration[3]}
+                                  </td>
+                                )}
                                 <td className="border border-gray-300 px-4 py-2 text-center text-black">
                                   {typeof iteration[iteration.length - 1] ===
                                   "number"
