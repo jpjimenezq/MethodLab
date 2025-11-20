@@ -289,6 +289,16 @@ export default function Chapter2() {
         w: wValue
       };
       
+      console.log('🔧 Ejecutando informe con datos:', {
+        matrixA: formData.matrixA,
+        vectorB: formData.vectorB,
+        vectorX0: formData.vectorX0,
+        norm_type: formData.norm_type,
+        tol: formData.tol,
+        max_count: formData.max_count,
+        w: formData.w
+      });
+      
       // Ejecutar todos los métodos disponibles
       for (const method of methods) {
         try {
@@ -329,6 +339,8 @@ export default function Chapter2() {
       
       setReportData(reportResults);
       setShowComparisonReport(true);
+      
+      console.log('✅ Informe generado con', reportResults.length, 'resultados');
       
     } finally {
       setLoading(false);
@@ -887,6 +899,7 @@ export default function Chapter2() {
       {/* Reporte de comparación */}
       {showComparisonReport && reportData.length > 0 && (
         <ComparisonReport
+          key={`report-${Date.now()}-${JSON.stringify(reportData[0]?.result?.spectral_radius || Math.random())}`}
           title="Informe de Comparación de Métodos - Capítulo 2"
           chapter={2}
           data={reportData}

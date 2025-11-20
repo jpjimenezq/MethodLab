@@ -19,6 +19,17 @@ export default function ComparisonReport({ title, data, chapter, onClose }: Comp
   
   // Debug: Ver qué datos llegan
   console.log('📊 ComparisonReport - Data received:', data)
+  console.log('📊 ComparisonReport - Chapter:', chapter)
+  
+  // Debug específico para capítulo 2
+  if (chapter === 2) {
+    data.forEach(item => {
+      console.log(`🔍 Método: ${item.method}`)
+      console.log(`  - spectral_radius:`, item.result?.spectral_radius)
+      console.log(`  - iterations length:`, item.result?.iterations?.length)
+      console.log(`  - error:`, item.error)
+    })
+  }
   
   // Función para analizar los mejores métodos según diferentes criterios
   const analyzeResults = () => {
